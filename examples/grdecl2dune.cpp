@@ -33,6 +33,7 @@
 #if HAVE_DUNE_ALUGRID
 #include <dune/alugrid/dgf.hh>
 #include <dune/alugrid/common/fromtogridfactory.hh>
+#include <dune/grid/test/gridcheck.cc>
 
 typedef Dune::ALUGrid< 3, 3, Dune::cube, Dune::nonconforming > GridType;
 
@@ -48,10 +49,18 @@ GridType* deck2dune( Opm::DeckConstPtr deck )
     Dune::FromToGridFactory< GridType > factory;
 
     // create Grid from CpGrid
-    Dune::GridPtr< GridType > grid = factory.convert( cpgrid );
+    GridType* grid = factory.convert( cpgrid );
+
+    if( grid->size( 0 ) != cpgrid.numCells() )
+    {
+        std::cout << grid->size( 0 ) << "  " << cpgrid.numCells() << std::endl;
+        std::abort();
+    }
+
+    Dune :: checkIndexSet( *grid, grid->leafGridView(), Dune :: dverb );
 
     // return pointer
-    return grid.release();
+    return grid;
 }
 
 int main(int argc, char** argv)
