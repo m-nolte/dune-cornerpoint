@@ -9,5 +9,4 @@ Label: 2013.10
 Maintainer: atgeirr@sintef.no
 #depending on 
 Depends: opm-core dune-common dune-grid
-Suggests: parallelgrid 
-Extra-Suggests: Alu3d
+Suggests: parallelgrid dune-alugrid

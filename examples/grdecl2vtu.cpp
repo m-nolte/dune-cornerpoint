@@ -29,6 +29,8 @@
 #include <opm/parser/eclipse/Parser/Parser.hpp>
 #include <opm/parser/eclipse/Deck/Deck.hpp>
 
+#include <dune/common/parallel/mpihelper.hh>
+
 using namespace Dune;
 
 /**
@@ -107,6 +109,7 @@ void condWriteIntegerField(std::vector<double> & fieldvector,
 int main(int argc, char** argv)
 try
 {
+    Dune::MPIHelper::instance( argc, argv );
 
     CpGrid grid;
     

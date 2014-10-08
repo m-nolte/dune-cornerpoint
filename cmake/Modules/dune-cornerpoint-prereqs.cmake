@@ -20,7 +20,8 @@ set (dune-cornerpoint_DEPS
 	# DUNE dependency
 	"dune-common REQUIRED;
 	dune-grid REQUIRED;
-	dune-geometry REQUIRED"
+	dune-geometry REQUIRED;
+	dune-alugrid"
 	# OPM dependency
 	"opm-core REQUIRED"
 	)

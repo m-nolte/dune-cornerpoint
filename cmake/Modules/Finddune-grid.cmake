@@ -23,7 +23,6 @@ find_opm_package (
   dune-common REQUIRED;
   dune-geometry REQUIRED;
   MPI;
-  ALUGrid;
   UG
   "
   # header to search for

@@ -71,6 +71,7 @@ list (APPEND TEST_DATA_FILES
 # find tutorials examples -name '*.c*' -printf '\t%p\n' | sort
 list (APPEND EXAMPLE_SOURCE_FILES
 	examples/grdecl2vtu.cpp
+	examples/grdecl2dune.cpp
 	examples/finitevolume/finitevolume.cc
 	)
 
