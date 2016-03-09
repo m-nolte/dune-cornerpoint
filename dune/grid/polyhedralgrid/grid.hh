@@ -145,7 +145,7 @@ namespace Dune
 
 
   // PolyhedralGrid
-  // ------
+  // --------------
 
   /** \class PolyhedralGrid
    *  \brief identical grid wrapper
@@ -176,7 +176,19 @@ namespace Dune
         destroy_grid( grdPtr );
       }
     };
+
   public:
+    typedef std::unique_ptr< UnstructuredGridType, UnstructuredGridDeleter > UnstructuredGridPtr;
+
+    static UnstructuredGridPtr
+    allocateGrid ( std::size_t nCells, std::size_t nFaces, std::size_t nFaceNodes, std::size_t nCellFaces, std::size_t nNodes )
+    {
+      UnstructuredGridType *grid = allocate_grid( dim, nCells, nFaces, nFaceNodes, nCellFaces, nNodes );
+      if( !grid )
+        DUNE_THROW( GridError, "Unable to allocate grid" );
+      return UnstructuredGridPtr( grid );
+    }
+
     /** \cond */
     typedef PolyhedralGridFamily< dim, dimworld > GridFamily;
     /** \endcond */
@@ -305,6 +317,23 @@ namespace Dune
     explicit PolyhedralGrid ( Opm::DeckConstPtr deck,
                               const  std::vector<double>& poreVolumes = std::vector<double> ())
     : gridPtr_( createGrid( deck, poreVolumes ) ),
+      grid_( *gridPtr_ ),
+      comm_( *this ),
+      leafIndexSet_( *this ),
+      globalIdSet_( *this ),
+      localIdSet_( *this )
+    {
+      init();
+    }
+
+    /** \brief constructor
+     *
+     *  \note The grid will take ownership of the supplied grid pointer.
+     *
+     *  \param[in]  ug  pointer to UnstructuredGrid
+     */
+    explicit PolyhedralGrid ( UnstructuredGridPtr &&gridPtr )
+    : gridPtr_( std::move( gridPtr ) ),
       grid_( *gridPtr_ ),
       comm_( *this ),
       leafIndexSet_( *this ),
@@ -1188,7 +1217,7 @@ namespace Dune
     }
 
   protected:
-    std::unique_ptr< UnstructuredGridType, UnstructuredGridDeleter > gridPtr_;
+    UnstructuredGridPtr gridPtr_;
     const UnstructuredGridType& grid_;
 
     CollectiveCommunication comm_;
