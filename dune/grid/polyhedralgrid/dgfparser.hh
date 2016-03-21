@@ -31,10 +31,10 @@ namespace Dune
           : BasicBlock( in, "Polygon" ), vtxBegin_( vtxOfs ), vtxEnd_( vtxOfs + numVtx )
         {}
 
-        int get ( std::vector< std::vector< unsigned int > > &polygons )
+        int get ( std::vector< std::vector< int > > &polygons )
         {
           reset();
-          std::vector< unsigned int > polygon;
+          std::vector< int > polygon;
           while( getnextline() )
           {
             polygon.clear();
@@ -44,6 +44,10 @@ namespace Dune
                 DUNE_THROW( DGFException, "Error in " << *this << ": Invalid vertex index (" << vtxIdx << " not int [" << vtxBegin_ << ", " << vtxEnd_ << "[)" );
               polygon.push_back( vtxIdx - vtxBegin_ );
             }
+            std::cout << "Got polygon = ";
+            for( int i=0; i<polygon.size(); ++ i )
+              std::cout << polygon[i] << " ";
+            std::cout << std::endl;
             polygons.push_back( polygon );
           }
           return polygons.size();
@@ -61,30 +65,35 @@ namespace Dune
       struct PolyhedronBlock
         : public BasicBlock
       {
-        explicit PolyhedronBlock ( std::istream &in, int numPolys )
-          : BasicBlock( in, "Polyhedron" ), numPolys_( numPolys )
+        explicit PolyhedronBlock ( std::istream &in, int numPolys, int polyOfs )
+          : BasicBlock( in, "Polyhedron" ), numPolyBegin_( polyOfs ), numPolyEnd_( numPolyBegin_ + numPolys )
         {}
 
-        int get ( std::vector< std::vector< unsigned int > > &polyhedra )
+        int get ( std::vector< std::vector< int > > &polyhedra )
         {
           reset();
-          std::vector< unsigned int > polyhedron;
+          std::vector< int > polyhedron;
           while( getnextline() )
           {
             polyhedron.clear();
             for( int polyIdx; getnextentry( polyIdx ); )
             {
-              if( (0 > polyIdx) || (polyIdx >= numPolys_) )
-                DUNE_THROW( DGFException, "Error in " << *this << ": Invalid vertex index (" << polyIdx << " not int [0, " << numPolys_ << "[)" );
+              if( (polyIdx < numPolyBegin_) || (polyIdx >= numPolyEnd_) )
+                DUNE_THROW( DGFException, "Error in " << *this << ": Invalid polygon index (" << polyIdx << " not int ["<<numPolyBegin_<<", " << numPolyEnd_ << "[)" );
               polyhedron.push_back( polyIdx );
             }
+            std::cout << "Got polyhedron = ";
+            for( int i=0; i<polyhedron.size(); ++ i )
+              std::cout << polyhedron[i] << " ";
+            std::cout << std::endl;
             polyhedra.push_back( polyhedron );
           }
           return polyhedra.size();
         }
 
       private:
-        int numPolys_;
+        const int numPolyBegin_;
+        const int numPolyEnd_;
       };
 
     } // namespace PolyhedralGrid
@@ -174,24 +183,24 @@ namespace Dune
       return vtxBlock.offset();
     }
 
-    std::vector< std::vector< unsigned int > > readPolygons ( std::istream &input, int numVtx, int vtxOfs )
+    std::vector< std::vector< int > > readPolygons ( std::istream &input, int numVtx, int vtxOfs )
     {
       dgf::PolyhedralGrid::PolygonBlock polygonBlock( input, numVtx, vtxOfs );
       if( !polygonBlock.isactive() )
         DUNE_THROW( DGFException, "Polygon block not found" );
 
-      std::vector< std::vector< unsigned int > > polygons;
+      std::vector< std::vector< int > > polygons;
       polygonBlock.get( polygons );
       return polygons;
     }
 
-    std::vector< std::vector< unsigned int > > readPolyhedra ( std::istream &input, int numPolys )
+    std::vector< std::vector< int > > readPolyhedra ( std::istream &input, int numPolygons, int polyOfs )
     {
-      dgf::PolyhedralGrid::PolyhedronBlock polyhedronBlock( input, numPolys );
+      dgf::PolyhedralGrid::PolyhedronBlock polyhedronBlock( input, numPolygons, polyOfs );
       if( !polyhedronBlock.isactive() )
         DUNE_THROW( DGFException, "Polyhedron block not found" );
 
-      std::vector< std::vector< unsigned int > > polyhedra;
+      std::vector< std::vector< int > > polyhedra;
       polyhedronBlock.get( polyhedra );
       return polyhedra;
     }
@@ -224,17 +233,70 @@ namespace Dune
       std::vector< std::vector< double > > nodes;
       const int vtxOfs = readVertices( input, nodes );
 
-      std::vector< std::vector< unsigned int > > faces = readPolygons( input, nodes.size(), vtxOfs );
-      std::vector< std::vector< unsigned int > > cells = readPolyhedra( input, cells.size() );
+      std::vector< std::vector< int > > faces = readPolygons( input, nodes.size(), vtxOfs );
+      std::vector< std::vector< int > > cells = readPolyhedra( input, faces.size(), 0 );
 
-      const auto sumSize = [] ( std::size_t s, const std::vector< unsigned int > &v ) { return s + v.size(); };
+      const auto sumSize = [] ( std::size_t s, const std::vector< int > &v ) { return s + v.size(); };
       const std::size_t numFaceNodes = std::accumulate( faces.begin(), faces.end(), std::size_t( 0 ), sumSize );
       const std::size_t numCellFaces = std::accumulate( cells.begin(), cells.end(), std::size_t( 0 ), sumSize );
 
       typename Grid::UnstructuredGridPtr ug = Grid::allocateGrid( cells.size(), faces.size(), numFaceNodes, numCellFaces, nodes.size() );
-      copy( faces.begin(), faces.end(), ug->face_nodes, ug->face_nodepos );
-      copy( cells.begin(), cells.end(), ug->cell_faces, ug->cell_facepos );
-      copy( nodes.begin(), nodes.end(), ug->node_coordinates );
+
+      // copy faces
+      {
+        const int nFaces = faces.size();
+        int facepos = 0;
+        for( int face = 0; face < nFaces; ++face )
+        {
+          ug->face_nodepos[ face ] = facepos;
+          // TODO find cells for each face
+          ug->face_cells[ 2*face ]   = 0;
+          ug->face_cells[ 2*face+1 ] = -1;
+          for( int vx = 0; vx < faces[ face ].size(); ++vx, ++facepos )
+          {
+            ug->face_nodes[ facepos ] = faces[ face ][ vx ];
+          }
+        }
+        ug->face_nodepos[ nFaces ] = facepos ;
+      }
+
+      // copy cells
+      {
+        const int nCells = cells.size();
+        int cellpos = 0;
+        for( int cell = 0; cell < nCells; ++cell )
+        {
+          ug->cell_facepos[ cell ] = cellpos;
+          for( int face = 0; face < cells[ cell ].size(); ++face, ++cellpos )
+          {
+            ug->cell_faces[ cellpos ] = cells[ cell ][ face ];
+          }
+        }
+        ug->cell_facepos[ nCells ] = cellpos ;
+      }
+
+      // copy node coordinates
+      {
+        const int nNodes = nodes.size();
+        int nodepos = 0;
+        for( int vx = 0 ; vx < nNodes; ++vx )
+        {
+          for( int d=0; d<dim; ++d, ++nodepos )
+            ug->node_coordinates[ nodepos ] = nodes[ vx ][ d ];
+        }
+      }
+
+      // free cell face tag since it's not a cartesian grid
+      if( ug->cell_facetag )
+      {
+        std::free( ug->cell_facetag );
+        ug->cell_facetag = nullptr ;
+        for( int i=0; i<3; ++i ) ug->cartdims[ i ] = 0;
+      }
+
+      // compute geometry of grid
+      UnstructuredGrid* ugPtr = ug.operator ->();
+      compute_geometry( ugPtr );
 
       grid_ = new Grid( std::move( ug ) );
     }

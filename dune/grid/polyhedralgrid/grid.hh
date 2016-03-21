@@ -909,15 +909,33 @@ namespace Dune
     int subEntities( const EntitySeed& seed, const int codim ) const
     {
       const int index = seed.index();
-      switch (codim)
+      if( seed.codimension == 0 )
       {
-        case 0:
-          return 1;
-        case 1:
-          return grid_.cell_facepos[ index+1 ] - grid_.cell_facepos[ index ];
-        case dim:
-          return cellVertices_[ index ].size();
+        switch (codim)
+        {
+          case 0:
+            return 1;
+          case 1:
+            return grid_.cell_facepos[ index+1 ] - grid_.cell_facepos[ index ];
+          case dim:
+            return cellVertices_[ index ].size();
+        }
       }
+      else if( seed.codimension == 1 )
+      {
+        switch (codim)
+        {
+          case 1:
+            return 1;
+          case dim:
+            return grid_.face_nodepos[ index+1 ] - grid_.face_nodepos[ index ];
+        }
+      }
+      else if ( seed.codimension == dim )
+      {
+        return 1 ;
+      }
+
       return 0;
     }
 
@@ -938,6 +956,26 @@ namespace Dune
       else if ( codim == dim )
       {
         return EntitySeed( cellVertices_[ elemSeed.index() ][ i ] );
+      }
+      else
+      {
+        DUNE_THROW(NotImplemented,"codimension not available");
+      }
+    }
+
+    template <int codim>
+    typename Codim<codim>::EntitySeed
+    subEntitySeed( const typename Codim<1>::EntitySeed& faceSeed, const int i ) const
+    {
+      assert( i>= 0 && i<subEntities( faceSeed, codim ) );
+      typedef typename Codim<codim>::EntitySeed  EntitySeed;
+      if ( codim == 1 )
+      {
+        return EntitySeed( faceSeed.index() );
+      }
+      else if ( codim == dim )
+      {
+        return EntitySeed( grid_.face_nodes[ grid_.face_nodepos[ faceSeed.index() ] + i ] );
       }
       else
       {
