@@ -236,19 +236,38 @@ namespace Dune
 
       // copy faces
       {
+#ifndef NDEBUG
+        std::map< std::vector< int >, std::vector< int > > faceMap;
+#endif
+
         const int nFaces = faces.size();
+        // set all face_cells values to -2 as default
+        std::fill( ug->face_cells, ug->face_cells + 2*nFaces, -1 );
+
         int facepos = 0;
+        std::vector< int > faceVertices;
+        faceVertices.reserve( 30 );
         for( int face = 0; face < nFaces; ++face )
         {
+          //std::cout << "face " << face << ": ";
+          faceVertices.clear();
           ug->face_nodepos[ face ] = facepos;
-          // TODO find cells for each face
-          ug->face_cells[ 2*face ]   = 0;
-          ug->face_cells[ 2*face+1 ] = -1;
           const int nVertices = faces[ face ].size();
           for( int vx = 0; vx < nVertices; ++vx, ++facepos )
           {
+            //std::cout << " " << faces[ face ][ vx ];
             ug->face_nodes[ facepos ] = faces[ face ][ vx ];
+            faceVertices.push_back( faces[ face ][ vx ] );
           }
+          //std::cout << std::endl;
+
+#ifndef NDEBUG
+          // sort vertices
+          std::sort( faceVertices.begin(), faceVertices.end() );
+          // make sure each face only exists once
+          faceMap[ faceVertices ].push_back( face );
+          assert( faceMap[ faceVertices ].size() == 1 );
+#endif
         }
         ug->face_nodepos[ nFaces ] = facepos ;
       }
@@ -259,12 +278,27 @@ namespace Dune
         int cellpos = 0;
         for( int cell = 0; cell < nCells; ++cell )
         {
+          //std::cout << "Cell " << cell << ": ";
           ug->cell_facepos[ cell ] = cellpos;
           const int nFaces = cells[ cell ].size();
-          for( int face = 0; face < nFaces; ++face, ++cellpos )
+          for( int f = 0; f < nFaces; ++f, ++cellpos )
           {
-            ug->cell_faces[ cellpos ] = cells[ cell ][ face ];
+            const int face = cells[ cell ][ f ];
+            // std::cout << " " << face ;
+            ug->cell_faces[ cellpos ] = face;
+
+            // TODO find cells for each face
+            if( ug->face_cells[ 2*face ] == -1 )
+            {
+              ug->face_cells[ 2*face ] = cell;
+            }
+            else // if ( ug->face_cells[ 2*face+1 ] == -1 )
+            {
+              assert( ug->face_cells[ 2*face+1 ] == -1 );
+              ug->face_cells[ 2*face+1 ] = cell;
+            }
           }
+          //std::cout << std::endl;
         }
         ug->cell_facepos[ nCells ] = cellpos ;
       }
@@ -280,6 +314,14 @@ namespace Dune
         }
       }
 
+      /*
+      for( int i=0; i<int(faces.size() ); ++i)
+      {
+        std::cout << "face "<< i<< " connects to " << ug->face_cells[ 2*i ] << " " <<
+          ug->face_cells[ 2*i+1] << std::endl;
+      }
+      */
+
       // free cell face tag since it's not a cartesian grid
       if( ug->cell_facetag )
       {
@@ -288,9 +330,8 @@ namespace Dune
         for( int i=0; i<3; ++i ) ug->cartdims[ i ] = 0;
       }
 
-      // compute geometry of grid
-      UnstructuredGrid* ugPtr = ug.operator ->();
-      compute_geometry( ugPtr );
+      // compute geometric quntities like cell volume and face normals
+      Grid::computeGeometry( ug );
 
       grid_ = new Grid( std::move( ug ) );
     }

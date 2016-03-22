@@ -189,6 +189,16 @@ namespace Dune
       return UnstructuredGridPtr( grid );
     }
 
+    static void
+    computeGeometry ( UnstructuredGridPtr& ug )
+    {
+      // get C pointer to UnstructuredGrid
+      UnstructuredGrid* ugPtr = ug.operator ->();
+
+      // compute geometric quntities like cell volume and face normals
+      compute_geometry( ugPtr );
+    }
+
     /** \cond */
     typedef PolyhedralGridFamily< dim, dimworld > GridFamily;
     /** \endcond */
