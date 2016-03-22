@@ -44,10 +44,6 @@ namespace Dune
                 DUNE_THROW( DGFException, "Error in " << *this << ": Invalid vertex index (" << vtxIdx << " not int [" << vtxBegin_ << ", " << vtxEnd_ << "[)" );
               polygon.push_back( vtxIdx - vtxBegin_ );
             }
-            std::cout << "Got polygon = ";
-            for( int i=0; i<polygon.size(); ++ i )
-              std::cout << polygon[i] << " ";
-            std::cout << std::endl;
             polygons.push_back( polygon );
           }
           return polygons.size();
@@ -82,10 +78,6 @@ namespace Dune
                 DUNE_THROW( DGFException, "Error in " << *this << ": Invalid polygon index (" << polyIdx << " not int ["<<numPolyBegin_<<", " << numPolyEnd_ << "[)" );
               polyhedron.push_back( polyIdx );
             }
-            std::cout << "Got polyhedron = ";
-            for( int i=0; i<polyhedron.size(); ++ i )
-              std::cout << polyhedron[i] << " ";
-            std::cout << std::endl;
             polyhedra.push_back( polyhedron );
           }
           return polyhedra.size();
@@ -252,7 +244,8 @@ namespace Dune
           // TODO find cells for each face
           ug->face_cells[ 2*face ]   = 0;
           ug->face_cells[ 2*face+1 ] = -1;
-          for( int vx = 0; vx < faces[ face ].size(); ++vx, ++facepos )
+          const int nVertices = faces[ face ].size();
+          for( int vx = 0; vx < nVertices; ++vx, ++facepos )
           {
             ug->face_nodes[ facepos ] = faces[ face ][ vx ];
           }
@@ -267,7 +260,8 @@ namespace Dune
         for( int cell = 0; cell < nCells; ++cell )
         {
           ug->cell_facepos[ cell ] = cellpos;
-          for( int face = 0; face < cells[ cell ].size(); ++face, ++cellpos )
+          const int nFaces = cells[ cell ].size();
+          for( int face = 0; face < nFaces; ++face, ++cellpos )
           {
             ug->cell_faces[ cellpos ] = cells[ cell ][ face ];
           }
