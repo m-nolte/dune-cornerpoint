@@ -44,6 +44,7 @@ namespace Dune
                 DUNE_THROW( DGFException, "Error in " << *this << ": Invalid vertex index (" << vtxIdx << " not int [" << vtxBegin_ << ", " << vtxEnd_ << "[)" );
               polygon.push_back( vtxIdx - vtxBegin_ );
             }
+
             polygons.push_back( polygon );
           }
           return polygons.size();
@@ -61,31 +62,44 @@ namespace Dune
       struct PolyhedronBlock
         : public BasicBlock
       {
-        explicit PolyhedronBlock ( std::istream &in, int numPolys, int polyOfs )
-          : BasicBlock( in, "Polyhedron" ), numPolyBegin_( polyOfs ), numPolyEnd_( numPolyBegin_ + numPolys )
+        explicit PolyhedronBlock ( std::istream &in, int numPolys )
+          : BasicBlock( in, "Polyhedron" ), numPolys_( numPolys )
         {}
 
         int get ( std::vector< std::vector< int > > &polyhedra )
         {
           reset();
           std::vector< int > polyhedron;
+          int minPolyId = 1;
           while( getnextline() )
           {
             polyhedron.clear();
             for( int polyIdx; getnextentry( polyIdx ); )
             {
-              if( (polyIdx < numPolyBegin_) || (polyIdx >= numPolyEnd_) )
-                DUNE_THROW( DGFException, "Error in " << *this << ": Invalid polygon index (" << polyIdx << " not int ["<<numPolyBegin_<<", " << numPolyEnd_ << "[)" );
+              if( (polyIdx < 0) || (polyIdx > numPolys_) )
+                DUNE_THROW( DGFException, "Error in " << *this << ": Invalid polygon index (" << polyIdx << " not int [0, " << numPolys_ << "])" );
+
+              minPolyId = std::min( minPolyId, polyIdx );
               polyhedron.push_back( polyIdx );
             }
+
             polyhedra.push_back( polyhedron );
+          }
+          // substract minimal number to have 0 starting numbering
+          const size_t polySize = polyhedra.size();
+          for( size_t i=0; i<polySize; ++i )
+          {
+            const size_t pSize = polyhedra[ i ].size();
+            for( size_t j=0; j<pSize; ++j )
+            {
+              polyhedra[ i ][ j ] -= minPolyId;
+            }
           }
           return polyhedra.size();
         }
 
       private:
-        const int numPolyBegin_;
-        const int numPolyEnd_;
+        const int numPolys_;
       };
 
     } // namespace PolyhedralGrid
@@ -186,9 +200,9 @@ namespace Dune
       return polygons;
     }
 
-    std::vector< std::vector< int > > readPolyhedra ( std::istream &input, int numPolygons, int polyOfs )
+    std::vector< std::vector< int > > readPolyhedra ( std::istream &input, int numPolygons )
     {
-      dgf::PolyhedralGrid::PolyhedronBlock polyhedronBlock( input, numPolygons, polyOfs );
+      dgf::PolyhedralGrid::PolyhedronBlock polyhedronBlock( input, numPolygons );
       if( !polyhedronBlock.isactive() )
         DUNE_THROW( DGFException, "Polyhedron block not found" );
 
@@ -226,7 +240,7 @@ namespace Dune
       const int vtxOfs = readVertices( input, nodes );
 
       std::vector< std::vector< int > > faces = readPolygons( input, nodes.size(), vtxOfs );
-      std::vector< std::vector< int > > cells = readPolyhedra( input, faces.size(), 0 );
+      std::vector< std::vector< int > > cells = readPolyhedra( input, faces.size() );
 
       const auto sumSize = [] ( std::size_t s, const std::vector< int > &v ) { return s + v.size(); };
       const std::size_t numFaceNodes = std::accumulate( faces.begin(), faces.end(), std::size_t( 0 ), sumSize );
@@ -294,7 +308,7 @@ namespace Dune
             }
             else // if ( ug->face_cells[ 2*face+1 ] == -1 )
             {
-              assert( ug->face_cells[ 2*face+1 ] == -1 );
+              //assert( ug->face_cells[ 2*face+1 ] == -1 );
               ug->face_cells[ 2*face+1 ] = cell;
             }
           }
