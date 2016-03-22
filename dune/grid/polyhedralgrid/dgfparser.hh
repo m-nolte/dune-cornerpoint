@@ -85,14 +85,18 @@ namespace Dune
 
             polyhedra.push_back( polyhedron );
           }
+
           // substract minimal number to have 0 starting numbering
-          const size_t polySize = polyhedra.size();
-          for( size_t i=0; i<polySize; ++i )
+          if( minPolyId > 0 )
           {
-            const size_t pSize = polyhedra[ i ].size();
-            for( size_t j=0; j<pSize; ++j )
+            const size_t polySize = polyhedra.size();
+            for( size_t i=0; i<polySize; ++i )
             {
-              polyhedra[ i ][ j ] -= minPolyId;
+              const size_t pSize = polyhedra[ i ].size();
+              for( size_t j=0; j<pSize; ++j )
+              {
+                polyhedra[ i ][ j ] -= minPolyId;
+              }
             }
           }
           return polyhedra.size();
