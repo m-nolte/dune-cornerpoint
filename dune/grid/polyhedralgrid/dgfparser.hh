@@ -207,11 +207,11 @@ namespace Dune
     std::vector< std::vector< int > > readPolyhedra ( std::istream &input, int numPolygons )
     {
       dgf::PolyhedralGrid::PolyhedronBlock polyhedronBlock( input, numPolygons );
-      if( !polyhedronBlock.isactive() )
-        DUNE_THROW( DGFException, "Polyhedron block not found" );
-
       std::vector< std::vector< int > > polyhedra;
-      polyhedronBlock.get( polyhedra );
+      if( polyhedronBlock.isactive() )
+      {
+        polyhedronBlock.get( polyhedra );
+      }
       return polyhedra;
     }
 
@@ -243,8 +243,13 @@ namespace Dune
       std::vector< std::vector< double > > nodes;
       const int vtxOfs = readVertices( input, nodes );
 
-      std::vector< std::vector< int > > faces = readPolygons( input, nodes.size(), vtxOfs );
+      std::vector< std::vector< int > > faces = readPolygons ( input, nodes.size(), vtxOfs );
       std::vector< std::vector< int > > cells = readPolyhedra( input, faces.size() );
+
+      if( cells.empty() )
+      {
+        DUNE_THROW( DGFException, "Polyhedron block not found" );
+      }
 
       const auto sumSize = [] ( std::size_t s, const std::vector< int > &v ) { return s + v.size(); };
       const std::size_t numFaceNodes = std::accumulate( faces.begin(), faces.end(), std::size_t( 0 ), sumSize );
@@ -350,6 +355,31 @@ namespace Dune
 
       // compute geometric quntities like cell volume and face normals
       Grid::computeGeometry( ug );
+
+      // check normal direction
+      {
+        typedef Dune::FieldVector< double, dim > Coordinate;
+        const int faces = ug->number_of_faces;
+        for( int face = 0 ; face < faces; ++face )
+        {
+          const int a = ug->face_cells[ 2*face     ];
+          const int b = ug->face_cells[ 2*face + 1 ];
+          Coordinate centerDiff( 0 );
+          Coordinate normal( 0 );
+          for( int d=0; d<dim; ++d )
+          {
+            centerDiff[ d ] = ug->cell_centroids[ b*dim + d ] - ug->cell_centroids[ a*dim + d ];
+            normal[ d ] = ug->face_normals[ face*dim + d ];
+          }
+
+          // if diff and normal point in different direction, flip faces
+          if( centerDiff * normal > 0 )
+          {
+            ug->face_cells[ 2*face     ] = b;
+            ug->face_cells[ 2*face + 1 ] = a;
+          }
+        }
+      }
 
       grid_ = new Grid( std::move( ug ) );
     }

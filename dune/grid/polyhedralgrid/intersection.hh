@@ -121,7 +121,7 @@ namespace Dune
       return Geometry( GeometryImpl(data(), data()->template subEntitySeed<1>(seed_, intersectionIdx_)));
     }
 
-    GeometryType type () const { return GeometryType(GeometryType::cube, dimension); }
+    GeometryType type () const { return GeometryType(GeometryType::none, dimension); }
 
     int indexInInside () const
     {
