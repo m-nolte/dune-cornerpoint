@@ -1297,33 +1297,31 @@ namespace Dune
 
             grid_.cell_volumes[ c ] = std::abs( matrix.determinant() )/ 6.0;
           }
+        }
 
-          // check face normals
+        // check face normals
+        {
+          typedef Dune::FieldVector< double, dim > Coordinate;
+          const int faces = grid_.number_of_faces;
+          for( int face = 0 ; face < faces; ++face )
           {
-            typedef Dune::FieldVector< double, dim > Coordinate;
-            const int faces = grid_.number_of_faces;
-            for( int face = 0 ; face < faces; ++face )
+            const int a = grid_.face_cells[ 2*face     ];
+            const int b = grid_.face_cells[ 2*face + 1 ];
+            Coordinate centerDiff( 0 );
+            Coordinate normal( 0 );
+            for( int d=0; d<dim; ++d )
             {
-              const int a = grid_.face_cells[ 2*face     ];
-              const int b = grid_.face_cells[ 2*face + 1 ];
-              Coordinate centerDiff( 0 );
-              Coordinate normal( 0 );
-              for( int d=0; d<dim; ++d )
-              {
-                centerDiff[ d ] = grid_.cell_centroids[ b*dim + d ] - grid_.cell_centroids[ a*dim + d ];
-                normal[ d ] = grid_.face_normals[ face*dim + d ];
-              }
+              centerDiff[ d ] = grid_.cell_centroids[ b*dim + d ] - grid_.cell_centroids[ a*dim + d ];
+              normal[ d ] = grid_.face_normals[ face*dim + d ];
+            }
 
-              // if diff and normal point in different direction, flip faces
-              if( centerDiff * normal < 0 )
-              {
-                grid_.face_cells[ 2*face     ] = b;
-                grid_.face_cells[ 2*face + 1 ] = a;
-              }
+            // if diff and normal point in different direction, flip faces
+            if( centerDiff * normal < 0 )
+            {
+              grid_.face_cells[ 2*face     ] = b;
+              grid_.face_cells[ 2*face + 1 ] = a;
             }
           }
-
-
         }
 
         // if no face_tag is available we assume that no reference element can be
