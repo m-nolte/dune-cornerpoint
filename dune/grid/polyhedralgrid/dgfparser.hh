@@ -12,6 +12,10 @@
 
 #include <dune/grid/polyhedralgrid/grid.hh>
 
+#include <opm/parser/eclipse/Parser/ParseMode.hpp>
+#include <opm/parser/eclipse/Parser/Parser.hpp>
+#include <opm/parser/eclipse/Deck/Deck.hpp>
+
 namespace Dune
 {
 
@@ -141,7 +145,18 @@ namespace Dune
       std::ifstream input( filename );
       if( !input )
         DUNE_THROW( DGFException, "Macrofile '" << filename << "' not found" );
-      generate( input );
+      if( !DuneGridFormatParser::isDuneGridFormat( input ) )
+      {
+        Opm::Parser parser;
+        Opm::ParseMode parseMode;
+        const auto deck = parser.parseFile(filename, parseMode);
+        std::vector<double> porv;
+
+        grid_ = new Grid( deck, porv );
+        return ;
+      }
+      else
+        generate( input );
     }
 
     Grid *grid () const { return grid_; }
@@ -238,7 +253,9 @@ namespace Dune
     void generate ( std::istream &input )
     {
       if( !DuneGridFormatParser::isDuneGridFormat( input ) )
+      {
         DUNE_THROW( DGFException, "Not in DGF format" );
+      }
 
       std::vector< std::vector< double > > nodes;
       const int vtxOfs = readVertices( input, nodes );
