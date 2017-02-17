@@ -35,8 +35,7 @@ namespace Dune
 
     explicit DGFGridFactory ( const std::string &filename,
                               MPICommunicator comm = MPIHelper::getCommunicator() )
-    : dgfHostFactory_( filename, comm ),
-      grid_( 0 )
+    : grid_( 0 )
     {
     }
 
@@ -72,13 +71,13 @@ namespace Dune
     const typename DGFBoundaryParameter::type &
     boundaryParameter ( const Intersection &intersection ) const
     {
-        return 0.0;
+        return DGFBoundaryParameter::defaultValue();
     }
 
     template< class Entity >
     std::vector< double > &parameter ( const Entity &entity )
     {
-        static std::vector dummy;
+        static std::vector< double > dummy;
         return dummy;
     }
 
