@@ -23,7 +23,7 @@
 
 #include <opm/grid/utility/ErrorMacros.hpp>
 #include <array>
-
+#include <vector>
 
 namespace Opm
 {
